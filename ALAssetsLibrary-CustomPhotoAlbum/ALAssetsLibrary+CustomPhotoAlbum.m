@@ -85,9 +85,9 @@
     //   or if the asset could not be added to the group.
     else {
       NSString * message = [NSString stringWithFormat:@"ALAssetsGroup failed to add asset: %@.", asset];
-      if (failure) failure([NSError errorWithDomain:@"LIB_ALAssetsLibrary_CustomPhotoAlbum"
-                                               code:0
-                                           userInfo:@{NSLocalizedDescriptionKey : message}]);
+      failure([NSError errorWithDomain:@"LIB_ALAssetsLibrary_CustomPhotoAlbum"
+                                  code:0
+                              userInfo:@{NSLocalizedDescriptionKey : message}]);
     }
   };
 }
@@ -349,6 +349,62 @@
   [self enumerateGroupsWithTypes:ALAssetsGroupAll
                       usingBlock:block
                     failureBlock:failureBlock];
+}
+
+
+- (void)getUrlOfImageFromAlbum:(NSString *)albumName srcimage:(UIImage *)srcimage
+                 completion:(void (^)(NSString *, NSError *))completion
+{
+    ALAssetsLibraryGroupsEnumerationResultsBlock block = ^(ALAssetsGroup *group, BOOL *stop) {
+        // Checking if library exists
+        if (group == nil) {
+            *stop = YES;
+            return;
+        }
+        NSString *srcString = [self encodeToBase64String:srcimage];
+        __block NSString *retUrl = @"";
+        // If we have found library with given title we enumerate it
+        if ([albumName compare:[group valueForProperty:ALAssetsGroupPropertyName]] == NSOrderedSame) {
+            NSMutableArray * images = [[NSMutableArray alloc] init];
+            [group enumerateAssetsUsingBlock:^(ALAsset *result, NSUInteger index, BOOL *stop) {
+                // Checking if group isn't empty
+                if (! result) return;
+                
+                // Getting the image from the asset
+                UIImageOrientation orientation =
+                (UIImageOrientation)[[result valueForProperty:@"ALAssetPropertyOrientation"] intValue];
+                UIImage * image = [UIImage imageWithCGImage:[[result defaultRepresentation] fullScreenImage]
+                                                      scale:1.0
+                                                orientation:orientation];
+                if([srcString isEqualToString:[self encodeToBase64String:image]]){
+                    NSURL *url = [result valueForProperty:@"ALAssetPropertyAssetURL"];
+                    retUrl = url.absoluteString;
+                    return;
+                }
+                // Saving this image to the array
+                [images addObject:image];
+            }];
+            
+            // Execute the |completion| block
+            if (completion) completion(retUrl, nil);
+            
+            // Album was found, bail out of the method
+            *stop = YES;
+        }
+    };
+    
+    ALAssetsLibraryAccessFailureBlock failureBlock = ^(NSError *error) {
+        NSLog(@"%s: %@", __PRETTY_FUNCTION__, [error localizedDescription]);
+        if (completion) completion(nil, error);
+    };
+    
+    [self enumerateGroupsWithTypes:ALAssetsGroupAll
+                        usingBlock:block
+                      failureBlock:failureBlock];
+}
+
+- (NSString *)encodeToBase64String:(UIImage *)image {
+    return [UIImagePNGRepresentation(image) base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
 }
 
 @end

@@ -69,4 +69,7 @@
 - (void)loadImagesFromAlbum:(NSString *)albumName
                  completion:(void (^)(NSMutableArray *images, NSError *error))completion;
 
+- (void)getUrlOfImageFromAlbum:(NSString *)albumName srcimage:(UIImage *)srcimage
+                    completion:(void (^)(NSString *, NSError *))completion;
+
 @end
